@@ -1,14 +1,10 @@
 <?php
 require_once 'db.php';
-
-// 1. SQL
-$stmt = $pdo->query("SELECT id, name, description FROM categories");
-
-// 2. Dabūjam visas rindas
+// 1. Готовим запрос
+$stmt = $pdo->query('SELECT id, name, description FROM categories');
+// 2. Получаем все строки в виде массива
 $categories = $stmt->fetchAll();
-
-// 3. JSON galvene
+// 3. Устанавливаем заголовок
 header('Content-Type: application/json');
-
-// 4. Izvadam kā JSON
+// 4. Отправляем JSON-ответ
 echo json_encode($categories);
