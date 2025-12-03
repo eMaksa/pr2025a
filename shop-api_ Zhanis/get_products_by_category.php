@@ -1,4 +1,5 @@
 <?php
+sleep(1);
 require_once 'db.php';
 
 // Проверяем, передан ли category_id
