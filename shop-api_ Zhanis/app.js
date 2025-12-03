@@ -1,60 +1,72 @@
-console.log("JS darbojas");
+console.log("JS загружен");
+
 document.addEventListener("DOMContentLoaded", () => {
+
     const loadBtn = document.getElementById("loadCategoriesBtn");
     const categoriesList = document.getElementById("categoriesList");
     const productsList = document.getElementById("productsList");
 
+    loadBtn.addEventListener("click", loadCategories);
 
-    loadBtn.addEventListener("click", () => {
-        loadCategories();
-    });
 
 
     function loadCategories() {
+
+
+        categoriesList.innerHTML = `
+            <div class="list-group-item d-flex justify-content-center">
+                <div class="spinner-border text-primary" role="status"></div>
+            </div>
+        `;
+
+        loadBtn.disabled = true;
         loadBtn.textContent = "Загрузка...";
 
         fetch("get_categories.php")
             .then(res => res.json())
             .then(data => {
-                console.log("Категории:", data);
-
                 categoriesList.innerHTML = "";
-                productsList.innerHTML = "";
 
                 data.forEach(category => {
                     let item = document.createElement("button");
                     item.className = "list-group-item list-group-item-action";
                     item.textContent = category.name;
 
-                    // сохраняем id категории
-                    item.dataset.id = category.id;
-
-                    // обработчик клика по категории
-                    item.addEventListener("click", () => {
-                        loadProducts(category.id);
-                    });
+                    item.addEventListener("click", () => loadProducts(category.id));
 
                     categoriesList.appendChild(item);
                 });
             })
-            .catch(err => console.error(err))
+            .catch(() => {
+                categoriesList.innerHTML =
+                    `<div class="list-group-item text-danger">Ошибка загрузки категорий</div>`;
+            })
             .finally(() => {
+                loadBtn.disabled = false;
                 loadBtn.textContent = "Получить данные";
             });
     }
 
-    // --------------------------
-    // Функция загрузки продуктов
-    // --------------------------
+
     function loadProducts(categoryId) {
-        productsList.innerHTML = "<p>Загрузка товаров...</p>";
+
+
+        productsList.innerHTML = `
+            <div class="d-flex justify-content-center my-3">
+                <div class="spinner-border text-success" role="status"></div>
+            </div>
+        `;
 
         fetch(`get_products_by_category.php?category_id=${categoryId}`)
             .then(res => res.json())
             .then(data => {
-                console.log("Товары:", data);
 
                 productsList.innerHTML = "";
+
+                if (data.length === 0) {
+                    productsList.innerHTML = `<p class="text-muted">Нет товаров.</p>`;
+                    return;
+                }
 
                 data.forEach(product => {
                     let card = document.createElement("div");
@@ -62,14 +74,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     card.innerHTML = `
                         <div class="card-body">
-                            <h5 class="card-title">${product.name}</h5>
-                            <p class="card-text">Цена: ${product.price}€</p>
+                            <h5>${product.name}</h5>
+                            <p>Цена: ${product.price}€</p>
                         </div>
                     `;
 
                     productsList.appendChild(card);
                 });
             })
-            .catch(err => console.error(err));
+            .catch(() => {
+                productsList.innerHTML =
+                    `<p class="text-danger">Ошибка загрузки товаров</p>`;
+            });
     }
+
 });
