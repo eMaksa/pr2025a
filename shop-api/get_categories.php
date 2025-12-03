@@ -1,5 +1,6 @@
-<?php
-require_once 'db.php';
+<?php 
+sleep(1);
+require_once 'db.php' ;
 // 1. Готовим запрос
 $stmt = $pdo->query('SELECT id, name, description FROM categories');
 // 2. Получаем все строки в виде массива
