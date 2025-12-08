@@ -1,8 +1,8 @@
 <?php
 $host = 'localhost';
 $dbname = 'shopdb'; // Имя БД, которую они создали
-$user = 'Tjoma'; // Пользователь по умолчанию в XAMPP
-$pass = 'Qwerty_889.513.'; // Пароль по умолчанию пустой
+$user = 'xxxx'; // имя пользователя 
+$pass = 'yyyy'; // пароль
 $options = [
 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
