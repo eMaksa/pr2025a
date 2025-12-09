@@ -9,9 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
     loadBtn.addEventListener("click", loadCategories);
 
 
-    // ==============================
-    // ЗАГРУЗКА КАТЕГОРИЙ
-    // ==============================
+
     function loadCategories() {
 
         categoriesList.innerHTML = `
@@ -49,19 +47,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 
-    // ==============================
-    // ФУНКЦИЯ: Цвет для stock
-    // ==============================
+
     function getStockColor(stock) {
-        if (stock <= 5) return "text-danger";     
-        if (stock <= 20) return "text-warning"; 
+        if (stock <= 5) return "text-danger";  
+        if (stock <= 20) return "text-warning";
         return "text-success";                    
     }
 
 
-    // ==============================
-    // АНИМАЦИОННАЯ ОЧИСТКА
-    // ==============================
     function fadeOut(element, duration = 300) {
         element.style.transition = `opacity ${duration}ms`;
         element.style.opacity = 0;
@@ -74,11 +67,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 
-    // ==============================
-    // ЗАГРУЗКА ТОВАРОВ
-    // ==============================
     async function loadProducts(categoryId) {
-
 
         await fadeOut(productsList);
 
@@ -93,7 +82,6 @@ document.addEventListener("DOMContentLoaded", () => {
             .then(res => res.json())
             .then(async data => {
 
-              
                 await fadeOut(productsList);
 
                 productsList.innerHTML = "";
@@ -106,7 +94,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 data.forEach(product => {
 
-                    let stock = Math.floor(Math.random() * (47 - 3 + 1)) + 3;
+                    let stock = product.stock;        
                     let colorClass = getStockColor(stock);
 
                     let card = document.createElement("div");
@@ -123,7 +111,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     productsList.appendChild(card);
 
-                
                     setTimeout(() => {
                         card.style.transition = "opacity 400ms";
                         card.style.opacity = "1";
