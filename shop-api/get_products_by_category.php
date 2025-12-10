@@ -9,16 +9,14 @@ if (!isset($_GET['category_id'])) {
     exit;
 }
 
-
-$sql = "SELECT id, name, price FROM products WHERE category_id = ?";
+$sql = "SELECT id, name, price, stock_quantity FROM products WHERE category_id = ?";
 $stmt = $pdo->prepare($sql);
 $stmt->execute([$_GET['category_id']]);
 
 $products = $stmt->fetchAll();
 
-
 foreach ($products as &$product) {
-    $product['stock'] = rand(3, 47);
+    $product['stock'] = $product['stock_quantity']; 
 }
 
 header('Content-Type: application/json');

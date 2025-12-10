@@ -2,10 +2,10 @@
 -- version 5.2.1
 -- https://www.phpmyadmin.net/
 --
--- Хост: 127.0.0.1
--- Время создания: Дек 10 2025 г., 12:41
--- Версия сервера: 10.4.32-MariaDB
--- Версия PHP: 8.2.12
+-- Host: 127.0.0.1
+-- Generation Time: Dec 10, 2025 at 09:34 PM
+-- Server version: 10.4.32-MariaDB
+-- PHP Version: 8.2.12
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -18,13 +18,13 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- База данных: `shopdb`
+-- Database: `shopdb`
 --
 
 -- --------------------------------------------------------
 
 --
--- Структура таблицы `categories`
+-- Table structure for table `categories`
 --
 
 CREATE TABLE `categories` (
@@ -35,7 +35,7 @@ CREATE TABLE `categories` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Дамп данных таблицы `categories`
+-- Dumping data for table `categories`
 --
 
 INSERT INTO `categories` (`id`, `name`, `description`, `created_at`) VALUES
@@ -46,7 +46,7 @@ INSERT INTO `categories` (`id`, `name`, `description`, `created_at`) VALUES
 -- --------------------------------------------------------
 
 --
--- Структура таблицы `customers`
+-- Table structure for table `customers`
 --
 
 CREATE TABLE `customers` (
@@ -59,7 +59,7 @@ CREATE TABLE `customers` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Дамп данных таблицы `customers`
+-- Dumping data for table `customers`
 --
 
 INSERT INTO `customers` (`id`, `first_name`, `last_name`, `email`, `password_hash`, `registration_date`) VALUES
@@ -72,7 +72,7 @@ INSERT INTO `customers` (`id`, `first_name`, `last_name`, `email`, `password_has
 -- --------------------------------------------------------
 
 --
--- Структура таблицы `orders`
+-- Table structure for table `orders`
 --
 
 CREATE TABLE `orders` (
@@ -83,7 +83,7 @@ CREATE TABLE `orders` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Дамп данных таблицы `orders`
+-- Dumping data for table `orders`
 --
 
 INSERT INTO `orders` (`id`, `customer_id`, `order_date`, `total_amount`) VALUES
@@ -93,7 +93,7 @@ INSERT INTO `orders` (`id`, `customer_id`, `order_date`, `total_amount`) VALUES
 -- --------------------------------------------------------
 
 --
--- Структура таблицы `order_items`
+-- Table structure for table `order_items`
 --
 
 CREATE TABLE `order_items` (
@@ -104,7 +104,7 @@ CREATE TABLE `order_items` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Дамп данных таблицы `order_items`
+-- Dumping data for table `order_items`
 --
 
 INSERT INTO `order_items` (`order_id`, `product_id`, `quantity`, `price_per_item`) VALUES
@@ -116,7 +116,7 @@ INSERT INTO `order_items` (`order_id`, `product_id`, `quantity`, `price_per_item
 -- --------------------------------------------------------
 
 --
--- Структура таблицы `products`
+-- Table structure for table `products`
 --
 
 CREATE TABLE `products` (
@@ -129,7 +129,7 @@ CREATE TABLE `products` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Дамп данных таблицы `products`
+-- Dumping data for table `products`
 --
 
 INSERT INTO `products` (`id`, `name`, `description`, `price`, `stock_quantity`, `category_id`) VALUES
@@ -143,122 +143,122 @@ INSERT INTO `products` (`id`, `name`, `description`, `price`, `stock_quantity`, 
 -- --------------------------------------------------------
 
 --
--- Структура таблицы `product_movements`
+-- Table structure for table `product_movements`
 --
 
 CREATE TABLE `product_movements` (
   `id` int(11) NOT NULL,
   `product_id` int(11) NOT NULL,
-  `movement_type` enum('приход','расход') NOT NULL,
+  `movement_type` tinyint(1) NOT NULL,
   `quantity` int(11) NOT NULL,
   `movement_date` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Индексы сохранённых таблиц
+-- Indexes for dumped tables
 --
 
 --
--- Индексы таблицы `categories`
+-- Indexes for table `categories`
 --
 ALTER TABLE `categories`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `name` (`name`);
 
 --
--- Индексы таблицы `customers`
+-- Indexes for table `customers`
 --
 ALTER TABLE `customers`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `email` (`email`);
 
 --
--- Индексы таблицы `orders`
+-- Indexes for table `orders`
 --
 ALTER TABLE `orders`
   ADD PRIMARY KEY (`id`),
   ADD KEY `customer_id` (`customer_id`);
 
 --
--- Индексы таблицы `order_items`
+-- Indexes for table `order_items`
 --
 ALTER TABLE `order_items`
   ADD PRIMARY KEY (`order_id`,`product_id`),
   ADD KEY `product_id` (`product_id`);
 
 --
--- Индексы таблицы `products`
+-- Indexes for table `products`
 --
 ALTER TABLE `products`
   ADD PRIMARY KEY (`id`),
   ADD KEY `category_id` (`category_id`);
 
 --
--- Индексы таблицы `product_movements`
+-- Indexes for table `product_movements`
 --
 ALTER TABLE `product_movements`
   ADD PRIMARY KEY (`id`),
   ADD KEY `product_id` (`product_id`);
 
 --
--- AUTO_INCREMENT для сохранённых таблиц
+-- AUTO_INCREMENT for dumped tables
 --
 
 --
--- AUTO_INCREMENT для таблицы `categories`
+-- AUTO_INCREMENT for table `categories`
 --
 ALTER TABLE `categories`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
--- AUTO_INCREMENT для таблицы `customers`
+-- AUTO_INCREMENT for table `customers`
 --
 ALTER TABLE `customers`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
--- AUTO_INCREMENT для таблицы `orders`
+-- AUTO_INCREMENT for table `orders`
 --
 ALTER TABLE `orders`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
--- AUTO_INCREMENT для таблицы `products`
+-- AUTO_INCREMENT for table `products`
 --
 ALTER TABLE `products`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
--- AUTO_INCREMENT для таблицы `product_movements`
+-- AUTO_INCREMENT for table `product_movements`
 --
 ALTER TABLE `product_movements`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
--- Ограничения внешнего ключа сохраненных таблиц
+-- Constraints for dumped tables
 --
 
 --
--- Ограничения внешнего ключа таблицы `orders`
+-- Constraints for table `orders`
 --
 ALTER TABLE `orders`
   ADD CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`);
 
 --
--- Ограничения внешнего ключа таблицы `order_items`
+-- Constraints for table `order_items`
 --
 ALTER TABLE `order_items`
   ADD CONSTRAINT `order_items_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `order_items_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`);
 
 --
--- Ограничения внешнего ключа таблицы `products`
+-- Constraints for table `products`
 --
 ALTER TABLE `products`
   ADD CONSTRAINT `products_ibfk_1` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 --
--- Ограничения внешнего ключа таблицы `product_movements`
+-- Constraints for table `product_movements`
 --
 ALTER TABLE `product_movements`
   ADD CONSTRAINT `product_movements_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`);
