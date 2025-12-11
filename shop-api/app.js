@@ -8,10 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     loadBtn.addEventListener("click", loadCategories);
 
-
-
     function loadCategories() {
-
         categoriesList.innerHTML = `
             <div class="list-group-item d-flex justify-content-center">
                 <div class="spinner-border text-primary" role="status"></div>
@@ -46,14 +43,11 @@ document.addEventListener("DOMContentLoaded", () => {
             });
     }
 
-
-
     function getStockColor(stock) {
         if (stock <= 5) return "text-danger";  
         if (stock <= 20) return "text-warning";
         return "text-success";                    
     }
-
 
     function fadeOut(element, duration = 300) {
         element.style.transition = `opacity ${duration}ms`;
@@ -66,9 +60,7 @@ document.addEventListener("DOMContentLoaded", () => {
         element.style.opacity = 1;
     }
 
-
     async function loadProducts(categoryId) {
-
         await fadeOut(productsList);
 
         productsList.innerHTML = `
@@ -81,9 +73,7 @@ document.addEventListener("DOMContentLoaded", () => {
         fetch(`get_products_by_category.php?category_id=${categoryId}`)
             .then(res => res.json())
             .then(async data => {
-
                 await fadeOut(productsList);
-
                 productsList.innerHTML = "";
 
                 if (data.length === 0) {
@@ -93,7 +83,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
                 data.forEach(product => {
-
                     let stock = product.stock;        
                     let colorClass = getStockColor(stock);
 
@@ -109,6 +98,12 @@ document.addEventListener("DOMContentLoaded", () => {
                         </div>
                     `;
 
+                    let movementBtn = document.createElement("button");
+                    movementBtn.className = "btn btn-sm btn-outline-secondary mt-2";
+                    movementBtn.textContent = "Движение";
+                    movementBtn.addEventListener("click", () => showMovementForm(product.id, product.name));
+                    card.querySelector(".card-body").appendChild(movementBtn);
+
                     productsList.appendChild(card);
 
                     setTimeout(() => {
@@ -123,6 +118,47 @@ document.addEventListener("DOMContentLoaded", () => {
                 productsList.innerHTML =
                     `<p class="text-danger">Ошибка загрузки товаров</p>`;
             });
+    }
+
+    function showMovementForm(productId, productName) {
+        const formHtml = `
+            <div class="card mt-2 p-3 border">
+                <h6>Движение для: ${productName}</h6>
+                <div class="mb-2">
+                    <select id="movementType" class="form-select">
+                        <option value="приход">Приход</option>
+                        <option value="расход">Расход</option>
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <input type="number" id="movementQty" class="form-control" placeholder="Количество">
+                </div>
+                <button class="btn btn-success" onclick="submitMovement(${productId})">Сохранить</button>
+            </div>
+        `;
+        productsList.insertAdjacentHTML("beforeend", formHtml);
+    }
+
+    window.submitMovement = function(productId) {
+        const type = document.getElementById("movementType").value;
+        const qty = parseInt(document.getElementById("movementQty").value);
+
+        if (!qty || qty <= 0) {
+            alert("Введите корректное количество");
+            return;
+        }
+
+        fetch("add_product_movement.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ product_id: productId, movement_type: type, quantity: qty })
+        })
+        .then(res => res.json())
+        .then(data => {
+            alert("Движение добавлено");
+            loadProducts(data.category_id);
+        })
+        .catch(() => alert("Ошибка при добавлении движения"));
     }
 
 });
