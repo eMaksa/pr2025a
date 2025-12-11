@@ -8,6 +8,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     loadBtn.addEventListener("click", loadCategories);
 
+    // ==============================
+    // ЗАГРУЗКА КАТЕГОРИЙ
+    // ==============================
     function loadCategories() {
         categoriesList.innerHTML = `
             <div class="list-group-item d-flex justify-content-center">
@@ -43,12 +46,18 @@ document.addEventListener("DOMContentLoaded", () => {
             });
     }
 
+    // ==============================
+    // Цвет количества
+    // ==============================
     function getStockColor(stock) {
         if (stock <= 5) return "text-danger";  
         if (stock <= 20) return "text-warning";
         return "text-success";                    
     }
 
+    // ==============================
+    // Анимации
+    // ==============================
     function fadeOut(element, duration = 300) {
         element.style.transition = `opacity ${duration}ms`;
         element.style.opacity = 0;
@@ -60,7 +69,13 @@ document.addEventListener("DOMContentLoaded", () => {
         element.style.opacity = 1;
     }
 
+    // ==============================
+    // ЗАГРУЗКА ТОВАРОВ
+    // ==============================
     async function loadProducts(categoryId) {
+
+        document.querySelectorAll(".movement-form").forEach(f => f.remove());
+
         await fadeOut(productsList);
 
         productsList.innerHTML = `
@@ -73,6 +88,7 @@ document.addEventListener("DOMContentLoaded", () => {
         fetch(`get_products_by_category.php?category_id=${categoryId}`)
             .then(res => res.json())
             .then(async data => {
+
                 await fadeOut(productsList);
                 productsList.innerHTML = "";
 
@@ -83,6 +99,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
                 data.forEach(product => {
+
                     let stock = product.stock;        
                     let colorClass = getStockColor(stock);
 
@@ -101,7 +118,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     let movementBtn = document.createElement("button");
                     movementBtn.className = "btn btn-sm btn-outline-secondary mt-2";
                     movementBtn.textContent = "Движение";
-                    movementBtn.addEventListener("click", () => showMovementForm(product.id, product.name));
+                    movementBtn.addEventListener("click", () => 
+                        showMovementForm(product.id, product.name, stock)
+                    );
                     card.querySelector(".card-body").appendChild(movementBtn);
 
                     productsList.appendChild(card);
@@ -120,45 +139,73 @@ document.addEventListener("DOMContentLoaded", () => {
             });
     }
 
-    function showMovementForm(productId, productName) {
+    // ==============================
+    // ФОРМА ДВИЖЕНИЯ ТОВАРА
+    // ==============================
+    function showMovementForm(productId, productName, currentStock) {
+
+        document.querySelectorAll(".movement-form").forEach(f => f.remove());
+
         const formHtml = `
-            <div class="card mt-2 p-3 border">
+            <div class="card mt-2 p-3 border movement-form">
                 <h6>Движение для: ${productName}</h6>
+                <p>Текущий остаток: <strong>${currentStock}</strong></p>
+
                 <div class="mb-2">
                     <select id="movementType" class="form-select">
                         <option value="приход">Приход</option>
                         <option value="расход">Расход</option>
                     </select>
                 </div>
+
                 <div class="mb-2">
                     <input type="number" id="movementQty" class="form-control" placeholder="Количество">
                 </div>
-                <button class="btn btn-success" onclick="submitMovement(${productId})">Сохранить</button>
+
+                <div id="movementError" class="text-danger mb-2"></div>
+
+                <button class="btn btn-success" onclick="submitMovement(${productId}, ${currentStock})">
+                    Сохранить
+                </button>
             </div>
         `;
+
         productsList.insertAdjacentHTML("beforeend", formHtml);
     }
 
-    window.submitMovement = function(productId) {
+    window.submitMovement = function(productId, currentStock) {
         const type = document.getElementById("movementType").value;
         const qty = parseInt(document.getElementById("movementQty").value);
+        const errorBox = document.getElementById("movementError");
+
+        errorBox.textContent = "";
 
         if (!qty || qty <= 0) {
-            alert("Введите корректное количество");
+            errorBox.textContent = "Введите корректное количество";
+            return;
+        }
+
+        if (type === "расход" && qty > currentStock) {
+            errorBox.textContent = `Недостаточно товара. Доступно: ${currentStock}`;
             return;
         }
 
         fetch("add_product_movement.php", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ product_id: productId, movement_type: type, quantity: qty })
+            body: JSON.stringify({
+                product_id: productId,
+                movement_type: type,
+                quantity: qty
+            })
         })
         .then(res => res.json())
         .then(data => {
-            alert("Движение добавлено");
             loadProducts(data.category_id);
         })
-        .catch(() => alert("Ошибка при добавлении движения"));
+        .catch(() => {
+            errorBox.textContent = "Ошибка при добавлении движения";
+        });
     }
 
 });
