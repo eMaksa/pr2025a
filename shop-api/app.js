@@ -364,5 +364,38 @@ document.addEventListener("DOMContentLoaded", () => {
             errorBox.textContent = "Ошибка при добавлении движения";
         });
     };
+    // ==============================
+    // ОТПРАВКА КОРЗИНЫ В PHP
+    // ==============================
+    window.checkout = function () {
+        const cart = getCart();
 
+        if (cart.length === 0) {
+            alert("Корзина пуста");
+            return;
+        }
+
+        fetch("checkout.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ cart })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) {
+                alert(data.error || "Ошибка сохранения заказа");
+                return;
+            }
+
+            // очищаем корзину
+            localStorage.removeItem(CART_KEY);
+            updateCartBadge();
+            renderCart();
+
+            showNotification("Заказ успешно сохранён");
+        })
+        .catch(() => {
+            alert("Ошибка сервера при оформлении заказа");
+        });
+    };
 });
