@@ -6,11 +6,167 @@ document.addEventListener("DOMContentLoaded", () => {
     const categoriesList = document.getElementById("categoriesList");
     const productsList = document.getElementById("productsList");
 
-    loadBtn.addEventListener("click", loadCategories);
+    // ==============================
+    // КОРЗИНА (localStorage)
+    // ==============================
+    const CART_KEY = 'shopCart';
+
+    function getCart() {
+        const data = localStorage.getItem(CART_KEY);
+        return data ? JSON.parse(data) : [];
+    }
+
+    function saveCart(cart) {
+        localStorage.setItem(CART_KEY, JSON.stringify(cart));
+        updateCartBadge();
+    }
+
+    function addToCart(productId, productName, price, stock) {
+        let cart = getCart();
+        let existing = cart.find(item => item.id === productId);
+
+        if (existing) {
+            if (existing.quantity < stock) {
+                existing.quantity++;
+                showNotification(`Количество "${productName}" увеличено`);
+            } else {
+                showNotification(`Максимум доступно: ${stock} шт.`, 'warning');
+                return;
+            }
+        } else {
+            cart.push({
+                id: productId,
+                name: productName,
+                price: price,
+                quantity: 1,
+                maxStock: stock
+            });
+            showNotification(`"${productName}" добавлен в корзину`);
+        }
+
+        saveCart(cart);
+    }
+
+    function removeFromCart(productId) {
+        let cart = getCart();
+        cart = cart.filter(item => item.id !== productId);
+        saveCart(cart);
+        renderCart();
+    }
+
+    function updateCartQuantity(productId, newQuantity) {
+        let cart = getCart();
+        let item = cart.find(i => i.id === productId);
+        
+        if (item) {
+            if (newQuantity <= 0) {
+                removeFromCart(productId);
+            } else if (newQuantity <= item.maxStock) {
+                item.quantity = newQuantity;
+                saveCart(cart);
+                renderCart();
+            } else {
+                showNotification(`Максимум доступно: ${item.maxStock} шт.`, 'warning');
+            }
+        }
+    }
+
+    function clearCart() {
+        if (confirm('Очистить корзину?')) {
+            localStorage.removeItem(CART_KEY);
+            updateCartBadge();
+            renderCart();
+            showNotification('Корзина очищена');
+        }
+    }
+
+    function updateCartBadge() {
+        const cart = getCart();
+        const badge = document.getElementById('cartBadge');
+        const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+        
+        badge.textContent = totalItems;
+        badge.style.display = totalItems > 0 ? 'flex' : 'none';
+    }
+
+    function getCartTotal() {
+        const cart = getCart();
+        return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    }
+
+    function renderCart() {
+        const cart = getCart();
+        const cartItems = document.getElementById('cartItems');
+        const cartTotal = document.getElementById('cartTotal');
+        const emptyCartMsg = document.getElementById('emptyCartMsg');
+        const cartFooter = document.getElementById('cartFooter');
+
+        if (cart.length === 0) {
+            cartItems.innerHTML = '';
+            emptyCartMsg.style.display = 'block';
+            cartFooter.style.display = 'none';
+            return;
+        }
+
+        emptyCartMsg.style.display = 'none';
+        cartFooter.style.display = 'block';
+
+        cartItems.innerHTML = cart.map(item => `
+            <div class="cart-item">
+                <div class="cart-item-info">
+                    <strong>${item.name}</strong>
+                    <small class="text-muted">${item.price}€ × ${item.quantity}</small>
+                </div>
+                <div class="cart-item-controls">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="updateCartQuantity(${item.id}, ${item.quantity - 1})">−</button>
+                    <span class="cart-qty">${item.quantity}</span>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="updateCartQuantity(${item.id}, ${item.quantity + 1})">+</button>
+                    <button class="btn btn-sm btn-outline-danger ms-2" onclick="removeFromCart(${item.id})">×</button>
+                </div>
+            </div>
+        `).join('');
+
+        cartTotal.textContent = getCartTotal().toFixed(2);
+    }
+
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type} notification`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.opacity = '1';
+            notification.style.transform = 'translateY(0)';
+        }, 10);
+
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            notification.style.transform = 'translateY(-20px)';
+            setTimeout(() => notification.remove(), 300);
+        }, 2500);
+    }
+
+    // Глобальные функции для корзины
+    window.addToCart = addToCart;
+    window.removeFromCart = removeFromCart;
+    window.updateCartQuantity = updateCartQuantity;
+    window.clearCart = clearCart;
+
+    window.openCart = function() {
+        renderCart();
+        const modal = new bootstrap.Modal(document.getElementById('cartModal'));
+        modal.show();
+    };
+
+    // Инициализация badge
+    updateCartBadge();
 
     // ==============================
     // ЗАГРУЗКА КАТЕГОРИЙ
     // ==============================
+    loadBtn.addEventListener("click", loadCategories);
+
     function loadCategories() {
         categoriesList.innerHTML = `
             <div class="list-group-item d-flex justify-content-center">
@@ -112,16 +268,16 @@ document.addEventListener("DOMContentLoaded", () => {
                             <h5>${product.name}</h5>
                             <p>Цена: ${product.price}€</p>
                             <p class="${colorClass}">Доступно: <strong>${stock}</strong> шт.</p>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-success flex-grow-1" onclick="addToCart(${product.id}, '${product.name}', ${product.price}, ${stock})">
+                                    🛒 В корзину
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="showMovementForm(${product.id}, '${product.name}', ${stock})">
+                                    Движение
+                                </button>
+                            </div>
                         </div>
                     `;
-
-                    let movementBtn = document.createElement("button");
-                    movementBtn.className = "btn btn-sm btn-outline-secondary mt-2";
-                    movementBtn.textContent = "Движение";
-                    movementBtn.addEventListener("click", () => 
-                        showMovementForm(product.id, product.name, stock)
-                    );
-                    card.querySelector(".card-body").appendChild(movementBtn);
 
                     productsList.appendChild(card);
 
@@ -142,7 +298,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // ==============================
     // ФОРМА ДВИЖЕНИЯ ТОВАРА
     // ==============================
-    function showMovementForm(productId, productName, currentStock) {
+    window.showMovementForm = function(productId, productName, currentStock) {
 
         document.querySelectorAll(".movement-form").forEach(f => f.remove());
 
@@ -171,7 +327,7 @@ document.addEventListener("DOMContentLoaded", () => {
         `;
 
         productsList.insertAdjacentHTML("beforeend", formHtml);
-    }
+    };
 
     window.submitMovement = function(productId, currentStock) {
         const type = document.getElementById("movementType").value;
@@ -202,10 +358,11 @@ document.addEventListener("DOMContentLoaded", () => {
         .then(res => res.json())
         .then(data => {
             loadProducts(data.category_id);
+            showNotification('Движение товара сохранено');
         })
         .catch(() => {
             errorBox.textContent = "Ошибка при добавлении движения";
         });
-    }
+    };
 
 });
