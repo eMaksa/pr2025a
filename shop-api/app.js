@@ -22,6 +22,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function addToCart(productId, productName, price, stock) {
+        
+            if (!localStorage.getItem('shopUser')) {
+        const modal = new bootstrap.Modal(document.getElementById('authModal'));
+        modal.show();
+        showNotification('Сначала войдите в систему', 'warning');
+        return;
+    }
         let cart = getCart();
         let existing = cart.find(item => item.id === productId);
 
