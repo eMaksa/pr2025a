@@ -13,14 +13,19 @@ function isLoggedIn() {
     return !!localStorage.getItem(AUTH_KEY);
 }
 
-function setUser(email) {
-    localStorage.setItem(AUTH_KEY, email);
+function setUser(user) {
+    localStorage.setItem(AUTH_KEY, JSON.stringify(user));
     updateAuthUI();
 }
 
 function logout() {
-    localStorage.removeItem(AUTH_KEY);
-    updateAuthUI();
+    // 🔴 ИЗМЕНЕНО: выход через сервер
+    fetch('logout.php')
+        .then(() => {
+            localStorage.removeItem(AUTH_KEY);
+            updateAuthUI();
+            showNotification('Вы вышли');
+        });
 }
 
 // === ОБНОВЛЕНИЕ ИНТЕРФЕЙСА ===
@@ -47,7 +52,7 @@ function isEmail(v) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 }
 
-// Функция для показа уведомлений
+// === УВЕДОМЛЕНИЯ ===
 function showNotification(message, type = 'success') {
     const notification = document.createElement('div');
     notification.className = `alert alert-${type} notification`;
@@ -76,7 +81,7 @@ document.querySelectorAll('[data-tab]').forEach(tab => {
     });
 });
 
-// === ВХОД (пока без функционала) ===
+// === ВХОД ===
 function validateLogin() {
     loginForm.querySelector('button').disabled =
         !(isEmail(loginEmail.value) && loginPassword.value.length >= 6);
@@ -85,12 +90,34 @@ function validateLogin() {
 loginEmail.addEventListener('input', validateLogin);
 loginPassword.addEventListener('input', validateLogin);
 
-loginForm.addEventListener('submit', e => {
+// 🔴 ИЗМЕНЕНО: реальный логин через PHP
+loginForm.addEventListener('submit', async e => {
     e.preventDefault();
-    // Временно: просто логиним
-    setUser(loginEmail.value);
-    bootstrap.Modal.getInstance(authModal).hide();
-    showNotification('Вход выполнен!');
+
+    try {
+        const response = await fetch('login.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email: loginEmail.value,
+                password: loginPassword.value
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            showNotification(data.error || 'Ошибка входа', 'danger');
+            return;
+        }
+
+        setUser(data.user);
+        bootstrap.Modal.getInstance(authModal).hide();
+        showNotification('Вход выполнен');
+
+    } catch (e) {
+        showNotification('Ошибка сервера', 'danger');
+    }
 });
 
 // === РЕГИСТРАЦИЯ ===
@@ -110,22 +137,19 @@ function validateRegister() {
 // ОБРАБОТКА ФОРМЫ РЕГИСТРАЦИИ
 registerForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    
+
     const btn = registerForm.querySelector('button');
     const originalText = btn.textContent;
-    
-    // Показываем процесс загрузки
+
     btn.disabled = true;
     btn.textContent = 'Регистрация...';
 
     try {
-        // Разделяем имя на имя и фамилию
         const fullName = regName.value.trim();
         const nameParts = fullName.split(' ');
         const firstName = nameParts[0] || fullName;
         const lastName = nameParts.slice(1).join(' ') || 'User';
 
-        // Отправляем данные на сервер
         const response = await fetch('register.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -139,37 +163,29 @@ registerForm.addEventListener('submit', async (e) => {
 
         const data = await response.json();
 
-        // Если ошибка
         if (!response.ok || !data.success) {
             showNotification(data.error || 'Ошибка регистрации', 'danger');
             return;
         }
 
-        // Если успешно
-        showNotification('Регистрация успешна! Теперь войдите в систему', 'success');
-        
-        // Переключаемся на вкладку "Вход"
+        showNotification('Регистрация успешна! Теперь войдите в систему');
         document.querySelector('[data-tab="login"]').click();
-        
-        // Очищаем форму
+
         regName.value = '';
         regEmail.value = '';
         regPassword.value = '';
         regRepeat.value = '';
 
     } catch (error) {
-        // Ошибка подключения
         showNotification('Ошибка подключения к серверу', 'danger');
-        console.error(error);
     } finally {
-        // Возвращаем кнопку в исходное состояние
         btn.disabled = false;
         btn.textContent = originalText;
-        validateRegister(); // Обновляем состояние кнопки
+        validateRegister();
     }
 });
 
-// === ЗАГРУЗКА ЗАКАЗОВ (пока заглушка) ===
+// === ЗАГРУЗКА ЗАКАЗОВ (заглушка) ===
 async function loadOrders() {
     const box = document.getElementById('ordersList');
     if (!box) return;
