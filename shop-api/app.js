@@ -11,6 +11,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // ==============================
     const CART_KEY = 'shopCart';
 
+    // ПРОМОКОДЫ / СКИДКА
+    let discountRate = 0; // 0.1 = 10%
+    let appliedPromo = "";
+
     function getCart() {
         const data = localStorage.getItem(CART_KEY);
         return data ? JSON.parse(data) : [];
@@ -21,14 +25,49 @@ document.addEventListener("DOMContentLoaded", () => {
         updateCartBadge();
     }
 
-    function addToCart(productId, productName, price, stock) {
-        
-            if (!localStorage.getItem('shopUser')) {
-        const modal = new bootstrap.Modal(document.getElementById('authModal'));
-        modal.show();
-        showNotification('Сначала войдите в систему', 'warning');
-        return;
+    // ==============================
+    // АНИМАЦИЯ: летящая иконка в корзину
+    // ==============================
+    function flyToCart(fromEl) {
+        const cartBtn = document.getElementById("cartButton");
+        if (!fromEl || !cartBtn) return;
+
+        const from = fromEl.getBoundingClientRect();
+        const to = cartBtn.getBoundingClientRect();
+
+        const bubble = document.createElement("div");
+        bubble.textContent = "🛒";
+        bubble.style.position = "fixed";
+        bubble.style.left = (from.left + from.width / 2) + "px";
+        bubble.style.top = (from.top + from.height / 2) + "px";
+        bubble.style.transform = "translate(-50%, -50%)";
+        bubble.style.zIndex = 2000;
+        bubble.style.fontSize = "22px";
+        bubble.style.pointerEvents = "none";
+
+        document.body.appendChild(bubble);
+
+        const dx = (to.left + to.width / 2) - (from.left + from.width / 2);
+        const dy = (to.top + to.height / 2) - (from.top + from.height / 2);
+
+        bubble.animate([
+            { transform: "translate(-50%, -50%) scale(1)", opacity: 1 },
+            { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0.2)`, opacity: 0.2 }
+        ], { duration: 600, easing: "cubic-bezier(.2,.8,.2,1)" });
+
+        setTimeout(() => bubble.remove(), 650);
     }
+
+    function addToCart(productId, productName, price, stock, btnEl) {
+
+        // Требование: доступ только после входа
+        if (!localStorage.getItem('shopUser')) {
+            const modal = new bootstrap.Modal(document.getElementById('authModal'));
+            modal.show();
+            showNotification('Сначала войдите в систему', 'warning');
+            return;
+        }
+
         let cart = getCart();
         let existing = cart.find(item => item.id === productId);
 
@@ -52,6 +91,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         saveCart(cart);
+        flyToCart(btnEl);
     }
 
     function removeFromCart(productId) {
@@ -64,7 +104,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function updateCartQuantity(productId, newQuantity) {
         let cart = getCart();
         let item = cart.find(i => i.id === productId);
-        
+
         if (item) {
             if (newQuantity <= 0) {
                 removeFromCart(productId);
@@ -90,13 +130,14 @@ document.addEventListener("DOMContentLoaded", () => {
     function updateCartBadge() {
         const cart = getCart();
         const badge = document.getElementById('cartBadge');
+        if (!badge) return;
         const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-        
+
         badge.textContent = totalItems;
         badge.style.display = totalItems > 0 ? 'flex' : 'none';
     }
 
-    function getCartTotal() {
+    function getCartSubtotal() {
         const cart = getCart();
         return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     }
@@ -107,16 +148,21 @@ document.addEventListener("DOMContentLoaded", () => {
         const cartTotal = document.getElementById('cartTotal');
         const emptyCartMsg = document.getElementById('emptyCartMsg');
         const cartFooter = document.getElementById('cartFooter');
+        const promoInfo = document.getElementById('promoInfo');
+
+        if (!cartItems || !cartTotal) return;
 
         if (cart.length === 0) {
             cartItems.innerHTML = '';
-            emptyCartMsg.style.display = 'block';
-            cartFooter.style.display = 'none';
+            if (emptyCartMsg) emptyCartMsg.style.display = 'block';
+            if (cartFooter) cartFooter.style.display = 'none';
+            cartTotal.textContent = "0.00";
+            if (promoInfo) promoInfo.textContent = "";
             return;
         }
 
-        emptyCartMsg.style.display = 'none';
-        cartFooter.style.display = 'block';
+        if (emptyCartMsg) emptyCartMsg.style.display = 'none';
+        if (cartFooter) cartFooter.style.display = 'block';
 
         cartItems.innerHTML = cart.map(item => `
             <div class="cart-item">
@@ -133,7 +179,22 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>
         `).join('');
 
-        cartTotal.textContent = getCartTotal().toFixed(2);
+        const subtotal = getCartSubtotal();
+        const discountAmount = subtotal * discountRate;
+        const total = subtotal - discountAmount;
+
+        cartTotal.textContent = total.toFixed(2);
+
+        // Показ скидки в реальном времени (текст)
+        if (promoInfo) {
+            if (discountRate > 0) {
+                promoInfo.textContent = `Промокод "${appliedPromo}" применён. Скидка: -${discountAmount.toFixed(2)}€`;
+            } else if (appliedPromo) {
+                promoInfo.textContent = `Промокод "${appliedPromo}" недействителен`;
+            } else {
+                promoInfo.textContent = "";
+            }
+        }
     }
 
     function showNotification(message, type = 'success') {
@@ -154,13 +215,47 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 2500);
     }
 
+    // ==============================
+    // PROMO (имитация API)
+    // ==============================
+    function verifyPromoAPI(code) {
+        // ИМИТАЦИЯ API: возвращаем результат через Promise
+        return new Promise(resolve => {
+            setTimeout(() => {
+                const normalized = code.trim().toUpperCase();
+                if (normalized === "SALE10") return resolve({ ok: true, rate: 0.10 });
+                if (normalized === "SALE20") return resolve({ ok: true, rate: 0.20 });
+                return resolve({ ok: false, rate: 0 });
+            }, 350);
+        });
+    }
+
+    window.applyPromo = async function () {
+        const input = document.getElementById("promoInput");
+        const code = (input?.value || "").trim();
+        appliedPromo = code;
+
+        const promoInfo = document.getElementById("promoInfo");
+        if (promoInfo) promoInfo.textContent = "Проверка промокода...";
+
+        const result = await verifyPromoAPI(code);
+        discountRate = result.ok ? result.rate : 0;
+
+        if (result.ok) {
+            showNotification(`Промокод применён (-${Math.round(result.rate * 100)}%)`);
+        } else {
+            showNotification("Промокод не найден", "warning");
+        }
+        renderCart();
+    };
+
     // Глобальные функции для корзины
     window.addToCart = addToCart;
     window.removeFromCart = removeFromCart;
     window.updateCartQuantity = updateCartQuantity;
     window.clearCart = clearCart;
 
-    window.openCart = function() {
+    window.openCart = function () {
         renderCart();
         const modal = new bootstrap.Modal(document.getElementById('cartModal'));
         modal.show();
@@ -172,17 +267,21 @@ document.addEventListener("DOMContentLoaded", () => {
     // ==============================
     // ЗАГРУЗКА КАТЕГОРИЙ
     // ==============================
-    loadBtn.addEventListener("click", loadCategories);
+    if (loadBtn) loadBtn.addEventListener("click", loadCategories);
 
     function loadCategories() {
+        if (!categoriesList) return;
+
         categoriesList.innerHTML = `
             <div class="list-group-item d-flex justify-content-center">
                 <div class="spinner-border text-primary" role="status"></div>
             </div>
         `;
 
-        loadBtn.disabled = true;
-        loadBtn.textContent = "Загрузка...";
+        if (loadBtn) {
+            loadBtn.disabled = true;
+            loadBtn.textContent = "Загрузка...";
+        }
 
         fetch("get_categories.php")
             .then(res => res.json())
@@ -204,8 +303,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     `<div class="list-group-item text-danger">Ошибка загрузки категорий</div>`;
             })
             .finally(() => {
-                loadBtn.disabled = false;
-                loadBtn.textContent = "Получить данные";
+                if (loadBtn) {
+                    loadBtn.disabled = false;
+                    loadBtn.textContent = "Получить данные";
+                }
             });
     }
 
@@ -213,9 +314,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // Цвет количества
     // ==============================
     function getStockColor(stock) {
-        if (stock <= 5) return "text-danger";  
+        if (stock <= 5) return "text-danger";
         if (stock <= 20) return "text-warning";
-        return "text-success";                    
+        return "text-success";
     }
 
     // ==============================
@@ -233,9 +334,140 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ==============================
+    // ФИЛЬТРЫ + СОРТИРОВКА + ЛЕНИВАЯ ЗАГРУЗКА (UI без перезагрузки)
+    // ==============================
+    let currentCategoryId = null;
+    let rawProducts = [];
+    let filteredProducts = [];
+    let visibleCount = 0;
+    const PAGE_SIZE = 6;
+    let isAppending = false;
+
+    const sortSelect = document.getElementById("sortSelect");
+    const priceRange = document.getElementById("priceRange");
+    const priceVal = document.getElementById("priceVal");
+
+    function applyFiltersAndSort(resetVisible = true) {
+        const maxPrice = priceRange ? Number(priceRange.value) : Infinity;
+        const sort = sortSelect ? sortSelect.value : "";
+
+        let list = rawProducts.filter(p => Number(p.price) <= maxPrice);
+
+        if (sort === "priceAsc") list.sort((a, b) => Number(a.price) - Number(b.price));
+        if (sort === "priceDesc") list.sort((a, b) => Number(b.price) - Number(a.price));
+        if (sort === "name") list.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+
+        filteredProducts = list;
+
+        if (resetVisible) visibleCount = 0;
+
+        renderNextChunk();
+    }
+
+    function renderSkeletons(count = 3) {
+        // Если у тебя нет CSS skeleton — можно просто спиннером
+        productsList.insertAdjacentHTML("beforeend", `
+            <div class="d-flex justify-content-center my-3 skeleton-block">
+                <div class="spinner-border text-success" role="status"></div>
+            </div>
+        `.repeat(count));
+    }
+
+    function clearSkeletons() {
+        document.querySelectorAll(".skeleton-block").forEach(el => el.remove());
+    }
+
+    function renderNextChunk() {
+        if (!productsList) return;
+        if (isAppending) return;
+
+        isAppending = true;
+
+        const start = visibleCount;
+        const end = Math.min(visibleCount + PAGE_SIZE, filteredProducts.length);
+        const chunk = filteredProducts.slice(start, end);
+
+        // если это первая порция - очистим
+        if (start === 0) {
+            productsList.innerHTML = "";
+        }
+
+        if (chunk.length === 0) {
+            if (start === 0) {
+                productsList.innerHTML = `<p class="text-muted">Нет товаров.</p>`;
+            }
+            isAppending = false;
+            return;
+        }
+
+        renderSkeletons(1);
+
+        setTimeout(() => {
+            clearSkeletons();
+
+            chunk.forEach(product => {
+                const stock = Number(product.stock);
+                const colorClass = getStockColor(stock);
+
+                let card = document.createElement("div");
+                card.className = "card mb-3 product-card";
+                card.style.opacity = "0";
+
+                const safeName = JSON.stringify(String(product.name)); // безопасно для кавычек
+
+                card.innerHTML = `
+                    <div class="card-body">
+                        <h5>${product.name}</h5>
+                        <p>Цена: ${product.price}€</p>
+                        <p class="${colorClass}">Доступно: <strong>${stock}</strong> шт.</p>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-success flex-grow-1 add-btn"
+                                onclick="addToCart(${product.id}, ${safeName}, ${product.price}, ${stock}, this)">
+                                🛒 В корзину
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary"
+                                onclick="showMovementForm(${product.id}, ${safeName}, ${stock})">
+                                Движение
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                productsList.appendChild(card);
+
+                setTimeout(() => {
+                    card.style.transition = "opacity 400ms";
+                    card.style.opacity = "1";
+                }, 50);
+            });
+
+            visibleCount = end;
+            isAppending = false;
+        }, 350);
+    }
+
+    if (sortSelect) sortSelect.addEventListener("change", () => applyFiltersAndSort(true));
+    if (priceRange) priceRange.addEventListener("input", () => {
+        if (priceVal) priceVal.textContent = priceRange.value;
+        applyFiltersAndSort(true);
+    });
+
+    // Бесконечный скролл: подгружаем следующую порцию (без кнопки)
+    window.addEventListener("scroll", () => {
+        if (!productsList) return;
+        if (currentCategoryId === null) return;
+        const nearBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - 150;
+        if (nearBottom) {
+            renderNextChunk();
+        }
+    });
+
+    // ==============================
     // ЗАГРУЗКА ТОВАРОВ
     // ==============================
     async function loadProducts(categoryId) {
+
+        currentCategoryId = categoryId;
 
         document.querySelectorAll(".movement-form").forEach(f => f.remove());
 
@@ -255,45 +487,20 @@ document.addEventListener("DOMContentLoaded", () => {
                 await fadeOut(productsList);
                 productsList.innerHTML = "";
 
-                if (data.length === 0) {
-                    productsList.innerHTML = `<p class="text-muted">Нет товаров.</p>`;
-                    fadeIn(productsList);
-                    return;
+                // сохраняем сырые товары (для фильтра/сорта/ленивой загрузки)
+                rawProducts = Array.isArray(data) ? data : [];
+                visibleCount = 0;
+
+                if (priceRange) {
+                    // выставим max slider динамически, если можно
+                    const maxPrice = rawProducts.reduce((m, p) => Math.max(m, Number(p.price || 0)), 0);
+                    const safeMax = Math.max(100, Math.ceil(maxPrice / 10) * 10);
+                    priceRange.max = String(safeMax);
+                    if (Number(priceRange.value) > safeMax) priceRange.value = String(safeMax);
+                    if (priceVal) priceVal.textContent = priceRange.value;
                 }
 
-                data.forEach(product => {
-
-                    let stock = product.stock;        
-                    let colorClass = getStockColor(stock);
-
-                    let card = document.createElement("div");
-                    card.className = "card mb-3 product-card";
-                    card.style.opacity = "0";
-
-                    card.innerHTML = `
-                        <div class="card-body">
-                            <h5>${product.name}</h5>
-                            <p>Цена: ${product.price}€</p>
-                            <p class="${colorClass}">Доступно: <strong>${stock}</strong> шт.</p>
-                            <div class="d-flex gap-2">
-                                <button class="btn btn-sm btn-success flex-grow-1" onclick="addToCart(${product.id}, '${product.name}', ${product.price}, ${stock})">
-                                    🛒 В корзину
-                                </button>
-                                <button class="btn btn-sm btn-outline-secondary" onclick="showMovementForm(${product.id}, '${product.name}', ${stock})">
-                                    Движение
-                                </button>
-                            </div>
-                        </div>
-                    `;
-
-                    productsList.appendChild(card);
-
-                    setTimeout(() => {
-                        card.style.transition = "opacity 400ms";
-                        card.style.opacity = "1";
-                    }, 50);
-                });
-
+                applyFiltersAndSort(true);
                 fadeIn(productsList);
             })
             .catch(() => {
@@ -305,7 +512,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // ==============================
     // ФОРМА ДВИЖЕНИЯ ТОВАРА
     // ==============================
-    window.showMovementForm = function(productId, productName, currentStock) {
+    window.showMovementForm = function (productId, productName, currentStock) {
 
         document.querySelectorAll(".movement-form").forEach(f => f.remove());
 
@@ -336,7 +543,7 @@ document.addEventListener("DOMContentLoaded", () => {
         productsList.insertAdjacentHTML("beforeend", formHtml);
     };
 
-    window.submitMovement = function(productId, currentStock) {
+    window.submitMovement = function (productId, currentStock) {
         const type = document.getElementById("movementType").value;
         const qty = parseInt(document.getElementById("movementQty").value);
         const errorBox = document.getElementById("movementError");
@@ -362,15 +569,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 quantity: qty
             })
         })
-        .then(res => res.json())
-        .then(data => {
-            loadProducts(data.category_id);
-            showNotification('Движение товара сохранено');
-        })
-        .catch(() => {
-            errorBox.textContent = "Ошибка при добавлении движения";
-        });
+            .then(res => res.json())
+            .then(data => {
+                loadProducts(data.category_id);
+                showNotification('Движение товара сохранено');
+            })
+            .catch(() => {
+                errorBox.textContent = "Ошибка при добавлении движения";
+            });
     };
+
     // ==============================
     // ОТПРАВКА КОРЗИНЫ В PHP
     // ==============================
@@ -387,22 +595,54 @@ document.addEventListener("DOMContentLoaded", () => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ cart })
         })
-        .then(res => res.json())
-        .then(data => {
-            if (!data.success) {
-                alert(data.error || "Ошибка сохранения заказа");
-                return;
-            }
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) {
+                    alert(data.error || "Ошибка сохранения заказа");
+                    return;
+                }
 
-            // очищаем корзину
-            localStorage.removeItem(CART_KEY);
-            updateCartBadge();
-            renderCart();
+                // очищаем корзину и сбрасываем промокод
+                localStorage.removeItem(CART_KEY);
+                discountRate = 0;
+                appliedPromo = "";
+                updateCartBadge();
+                renderCart();
 
-            showNotification("Заказ успешно сохранён");
-        })
-        .catch(() => {
-            alert("Ошибка сервера при оформлении заказа");
-        });
+                showNotification("Заказ успешно сохранён");
+            })
+            .catch(() => {
+                alert("Ошибка сервера при оформлении заказа");
+            });
     };
+
+    // ==============================
+    // ONLINE CHAT (имитация)
+    // ==============================
+    const botReplies = [
+        "Здравствуйте! Чем помочь?",
+        "Секунду, проверяю информацию 🙂",
+        "Попробуйте обновить страницу (Ctrl+F5).",
+        "Спасибо! Передам оператору.",
+        "Промокоды: SALE10, SALE20."
+    ];
+
+    window.sendMessage = function () {
+        const chatBox = document.getElementById("chatBox");
+        const chatInput = document.getElementById("chatInput");
+        if (!chatBox || !chatInput) return;
+
+        const text = chatInput.value.trim();
+        if (!text) return;
+
+        chatBox.insertAdjacentHTML("beforeend", `<div><strong>Вы:</strong> ${text}</div>`);
+        chatInput.value = "";
+
+        const reply = botReplies[Math.floor(Math.random() * botReplies.length)];
+        setTimeout(() => {
+            chatBox.insertAdjacentHTML("beforeend", `<div><strong>Бот:</strong> ${reply}</div>`);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }, 450);
+    };
+
 });
